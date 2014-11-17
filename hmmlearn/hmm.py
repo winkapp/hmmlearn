@@ -37,6 +37,9 @@ NEGINF = -np.inf
 decoder_algorithms = ("viterbi", "map")
 
 
+def log_normalize(A):
+    return A - logsumexp(A)
+
 def normalize(A, axis=None):
     """ Normalize the input array so that it sums to 1.
 
@@ -194,6 +197,42 @@ class _BaseHMM(BaseEstimator):
         posteriors += np.finfo(np.float32).eps
         posteriors /= np.sum(posteriors, axis=1).reshape((-1, 1))
         return logprob, posteriors
+
+
+    def forward(self, obs):
+        """Compute the log probability under the model and compute posteriors.
+
+        Parameters
+        ----------
+        obs : array_like, shape (n, n_features)
+            Sequence of n_features-dimensional data points. Each row
+            corresponds to a single point in the sequence.
+
+        Returns
+        -------
+        logprob : float
+            Log likelihood of the sequence ``obs``.
+
+        posteriors : array_like, shape (n, n_components)
+            Posterior probabilities of each state for each
+            observation
+
+        See Also
+        --------
+        score : Compute the log probability under the model
+        decode : Find most likely state sequence corresponding to a `obs`
+        """
+        obs = np.asarray(obs)
+
+
+        # Zeros is to make sure the observation includes the transition matrices
+        # Currently this code assumes the first observations applies to the start transition
+        # Thus if you only passed in one observation the transition matrics would not be included 
+        zeros = np.zeros((1,self.n_components))
+        framelogprob = self._compute_log_likelihood(obs)
+        framelogprob = np.vstack((zeros,framelogprob))
+        logprob, fwdlattice = self._do_forward_pass(framelogprob)
+        return fwdlattice[-1,:], log_normalize(fwdlattice[-1,:])
 
     def score(self, obs):
         """Compute the log probability under the model.
@@ -549,6 +588,7 @@ class _BaseHMM(BaseEstimator):
             self.startprob_.fill(1.0 / self.n_components)
         if 't' in params:
             self.transmat_.fill(1.0 / self.n_components)
+
 
     # Methods used by self.fit()
 

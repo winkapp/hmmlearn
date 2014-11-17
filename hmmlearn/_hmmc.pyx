@@ -43,6 +43,11 @@ def _forward(int n_observations, int n_components,
     cdef np.ndarray[dtype_t, ndim = 1] work_buffer
     work_buffer = np.zeros(n_components)
 
+# To use this iteraviely you would either delete this for loop
+# Or you could have a framelogprob would equal 0 for [0,:]
+# this would allow the second time step to be a single time step
+# also in the scenario where we want to multiple "Nones" in a row, we could still use this function
+
     for i in range(n_components):
         fwdlattice[0, i] = log_startprob[i] + framelogprob[0, i]
 
